@@ -1,14 +1,17 @@
-const { v4: uuid } = require("uuid");
 const express = require("express");
 const routes = express.Router();
-
-const products = [];
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 // Midlewares
-function verifyIfProductExistsByName(request, response, next) {
+async function verifyIfProductExistsByName(request, response, next) {
   const { name } = request.body;
 
-  const product = products.find((product) => product.name === name);
+  const product = await prisma.product.findUnique({
+    where: {
+      name,
+    },
+  });
 
   if (!product) {
     return response.status(400).json({ error: "Product not found!" });
@@ -19,10 +22,32 @@ function verifyIfProductExistsByName(request, response, next) {
   return next();
 }
 
-function verifyIfProductExistsByID(request, response, next) {
+async function verifyIfProductNameIsAlreadyInUse(request, response, next) {
+  const { name } = request.body;
+
+  const product = await prisma.product.findUnique({
+    where: {
+      name,
+    },
+  });
+
+  if (product) {
+    return response.status(400).json({ error: "This name is already in use!" });
+  }
+
+  request.product = product;
+
+  return next();
+}
+
+async function verifyIfProductExistsByID(request, response, next) {
   const { id } = request.body;
 
-  const product = products.find((product) => product.id === id);
+  const product = await prisma.product.findUnique({
+    where: {
+      id,
+    },
+  });
 
   if (!product) {
     return response.status(400).json({ error: "Product not found!" });
@@ -34,21 +59,25 @@ function verifyIfProductExistsByID(request, response, next) {
 }
 
 // Create product
-routes.post("/product", (request, response) => {
-  const { name, price } = request.body;
-
-  id = uuid();
-  product = {
-    id,
-    name,
-    price,
-  };
-  products.push(product);
-  return response.status(201).json(product);
-});
+routes.post(
+  "/product",
+  verifyIfProductNameIsAlreadyInUse,
+  async (request, response) => {
+    const { name, status, price } = request.body;
+    const product = await prisma.product.create({
+      data: {
+        status,
+        name,
+        price,
+      },
+    });
+    return response.status(201).json(product);
+  }
+);
 
 // List all products
-routes.get("/products", (request, response) => {
+routes.get("/products", async (request, response) => {
+  const products = await prisma.product.findMany();
   return response.json(products);
 });
 
@@ -59,30 +88,38 @@ routes.get("/product", verifyIfProductExistsByName, (request, response) => {
 });
 
 // Update product by id
-routes.put("/product", verifyIfProductExistsByID, (request, response) => {
-  const { product } = request;
-  const { name, price } = request.body;
+routes.put("/product", verifyIfProductExistsByID, async (request, response) => {
+  const { id, name, price, status } = request.body;
 
-  if (name) {
-    product.name = name;
-  }
-
-  if (price) {
-    product.price = price;
-  }
+  const product = await prisma.product.update({
+    where: {
+      id,
+    },
+    data: {
+      status,
+      name,
+      price,
+    },
+  });
 
   return response.json(product);
 });
 
 // Delete Product By ID
-routes.delete("/product", verifyIfProductExistsByID, (request, response) => {
-  const { product } = request;
+routes.delete(
+  "/product",
+  verifyIfProductExistsByID,
+  async (request, response) => {
+    const { id } = request.body;
 
-  const index = products.indexOf(product);
+    await prisma.product.delete({
+      where: {
+        id,
+      },
+    });
 
-  const x = products.splice(index, 1);
+    return response.send("Product deleted successfully!");
+  }
+);
 
-  return response.send("Product deleted successfully!");
-});
-//
 module.exports = routes;
