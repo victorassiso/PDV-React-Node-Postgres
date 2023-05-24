@@ -1,0 +1,30 @@
+.title {
+  display: flex;
+  justify-content: center;
+}
+
+table,
+th,
+td {
+  border: 1px solid;
+  padding: 1rem;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+.nameColumn {
+  padding: 1rem 32.5rem 1rem 1rem;
+}
+
+.toolBar {
+  padding: 16px 0px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.searchTool input {
+  width: 30rem;
+  margin-right: 1rem;
+}
